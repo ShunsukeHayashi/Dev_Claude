@@ -2,66 +2,67 @@
 
 import asyncio
 import sys
+import os
 import logging
-import click
 from pathlib import Path
 from typing import Optional
 
-from .server import YamlContextServer
-from .config import Config
-from .utils.logging import setup_logging
+# Add src directory to path for module imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from yaml_context_engineering.server import YamlContextServer
+from yaml_context_engineering.config import Config
+
+# Configure logging to stderr (stdout is used for MCP communication)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stderr),
+        logging.FileHandler(
+            Path.home() / '.claude' / 'logs' / 'yaml-context-engineering.log',
+            mode='a'
+        )
+    ]
+)
+
+logger = logging.getLogger(__name__)
 
 
-@click.command()
-@click.option(
-    "--host",
-    default="localhost",
-    help="Host to bind the server to",
-)
-@click.option(
-    "--port",
-    default=3000,
-    type=int,
-    help="Port to bind the server to",
-)
-@click.option(
-    "--log-level",
-    default="INFO",
-    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"]),
-    help="Logging level",
-)
-@click.option(
-    "--output-dir",
-    type=click.Path(path_type=Path),
-    default="generated_contexts",
-    help="Base directory for generated context files",
-)
-@click.option(
-    "--config-file",
-    type=click.Path(exists=True, path_type=Path),
-    help="Path to configuration file",
-)
-def main(
-    host: str,
-    port: int,
-    log_level: str,
-    output_dir: Path,
-    config_file: Optional[Path],
-) -> None:
-    """Start the YAML Context Engineering MCP Server."""
-    # Setup logging
-    setup_logging(log_level)
-    logger = logging.getLogger(__name__)
+def get_output_directory() -> Path:
+    """Get the output directory from environment or default."""
+    # Check environment variable first
+    env_dir = os.getenv('MCP_OUTPUT_DIRECTORY')
+    if env_dir:
+        return Path(env_dir)
     
-    # Load configuration
+    # Check if we're in a project with generated_contexts
+    local_dir = Path.cwd() / 'generated_contexts'
+    if local_dir.exists():
+        return local_dir
+    
+    # Default to home directory
+    return Path.home() / 'generated_contexts'
+
+
+async def main():
+    """Main entry point for the MCP server."""
+    logger.info("Starting YAML Context Engineering MCP Server")
+    
+    # Ensure log directory exists
+    log_dir = Path.home() / '.claude' / 'logs'
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Get configuration from environment
+    output_dir = get_output_directory()
+    logger.info(f"Output directory: {output_dir}")
+    
+    # Ensure output directory exists
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create configuration
     config = Config.from_env()
-    config.log_level = log_level
     config.output.output_base_directory = output_dir
-    
-    # Override with config file if provided
-    if config_file:
-        logger.info(f"Loading configuration from {config_file}")
-        # TODO: Implement config file loading
     
     # Validate configuration
     try:
@@ -70,20 +71,33 @@ def main(
         logger.error(f"Configuration error: {e}")
         sys.exit(1)
     
-    # Create and start server
+    # Create and run server
     server = YamlContextServer(config)
     
-    logger.info(f"Starting YAML Context Engineering MCP Server on {host}:{port}")
-    logger.info(f"Output directory: {config.output.output_base_directory}")
-    
     try:
-        asyncio.run(server.run(host, port))
+        # Run the server with STDIO transport
+        logger.info("MCP Server is running in STDIO mode...")
+        await server.run()
     except KeyboardInterrupt:
-        logger.info("Server stopped by user")
+        logger.info("Server interrupted by user")
     except Exception as e:
         logger.error(f"Server error: {e}", exc_info=True)
         sys.exit(1)
+    finally:
+        logger.info("Server shutdown complete")
 
 
 if __name__ == "__main__":
-    main()
+    # Handle module execution (-m flag)
+    if len(sys.argv) > 1 and sys.argv[1] == "-m":
+        sys.argv.pop(1)
+    
+    # Run the async main function
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Interrupted")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Fatal error: {e}")
+        sys.exit(1)

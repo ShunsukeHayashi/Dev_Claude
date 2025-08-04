@@ -18,6 +18,7 @@ from .tools import (
     FileSystemManager
 )
 from .tools.ldd_manager import LDDManagerTool, LDD_MANAGER_TOOL
+from .tools.quality_analyzer_tool import QualityAnalyzerTool
 from .ldd import LDDConfig
 
 
@@ -47,6 +48,9 @@ class YamlContextServer:
             templatePath=str(config.output.output_base_directory / '@logging_template.md')
         )
         self.ldd_manager = LDDManagerTool(ldd_config)
+        
+        # Initialize Quality Analyzer
+        self.quality_analyzer = QualityAnalyzerTool(str(config.output.output_base_directory))
         
         # Setup handlers
         self._setup_handlers()
@@ -153,6 +157,40 @@ class YamlContextServer:
                     name="ldd_manager",
                     description=LDD_MANAGER_TOOL["description"],
                     inputSchema=LDD_MANAGER_TOOL["inputSchema"]
+                ),
+                Tool(
+                    name="quality_analyzer",
+                    description="Analyze the quality of extracted context files",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "string",
+                                "enum": ["analyze_file", "analyze_directory", "compare_files", "suggest_improvements"],
+                                "description": "The quality analysis action to perform"
+                            },
+                            "file_path": {
+                                "type": "string",
+                                "description": "Path to the file to analyze"
+                            },
+                            "directory_path": {
+                                "type": "string",
+                                "description": "Path to directory to analyze"
+                            },
+                            "file_paths": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of file paths to compare"
+                            },
+                            "severity_filter": {
+                                "type": "string",
+                                "enum": ["all", "critical", "high", "medium", "low"],
+                                "default": "all",
+                                "description": "Filter issues by severity level"
+                            }
+                        },
+                        "required": ["action"]
+                    }
                 )
             ]
             return tools
@@ -191,6 +229,8 @@ class YamlContextServer:
                         action=arguments["action"],
                         **{k: v for k, v in arguments.items() if k != "action"}
                     )
+                elif name == "quality_analyzer":
+                    result = await self.quality_analyzer.execute(**arguments)
                 else:
                     raise ValueError(f"Unknown tool: {name}")
                 

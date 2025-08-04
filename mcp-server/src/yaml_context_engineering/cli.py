@@ -166,6 +166,109 @@ def generate_analysis_report(structure: dict) -> str:
     return report
 
 
+@cli.command()
+@click.argument('path', type=Path, required=False)
+@click.option('--file', '-f', type=Path, help='Analyze a specific file')
+@click.option('--directory', '-d', type=Path, help='Analyze all files in directory')
+@click.option('--output', '-o', type=Path, help='Save report to file')
+@click.option('--severity', type=click.Choice(['all', 'critical', 'high', 'medium', 'low']), 
+              default='all', help='Filter issues by severity')
+@click.pass_context
+async def quality(ctx: click.Context, path: Optional[Path], file: Optional[Path], 
+                 directory: Optional[Path], output: Optional[Path], severity: str) -> None:
+    """Analyze quality of extracted contexts."""
+    from .quality_analyzer import QualityAnalyzer
+    
+    # Determine what to analyze
+    if file:
+        target_file = file
+    elif path and path.is_file():
+        target_file = path
+    else:
+        target_file = None
+    
+    if directory:
+        target_dir = directory
+    elif path and path.is_dir():
+        target_dir = path
+    elif not target_file:
+        target_dir = Path("generated_contexts")
+    else:
+        target_dir = None
+    
+    analyzer = QualityAnalyzer()
+    
+    try:
+        if target_file:
+            # Analyze single file
+            console.info(f"Analyzing quality of: {target_file}")
+            report = await analyzer.analyze_file(target_file)
+            
+            # Filter issues by severity
+            if severity != 'all':
+                report.issues = [i for i in report.issues if i.severity == severity]
+            
+            # Display report
+            console.print(f"\n[bold]Quality Report for {target_file.name}[/bold]")
+            console.print(f"Overall Score: [bold]{report.metrics.overall_score:.1f}/100[/bold]\n")
+            
+            # Score breakdown
+            console.print("[bold]Scores:[/bold]")
+            console.print(f"  Completeness: {report.metrics.completeness_score:.1f}")
+            console.print(f"  Consistency: {report.metrics.consistency_score:.1f}")
+            console.print(f"  Accuracy: {report.metrics.accuracy_score:.1f}")
+            console.print(f"  Usability: {report.metrics.usability_score:.1f}\n")
+            
+            # Issues
+            if report.issues:
+                console.print(f"[bold]Issues ({len(report.issues)}):[/bold]")
+                for issue in sorted(report.issues, 
+                                  key=lambda x: ['critical', 'high', 'medium', 'low'].index(x.severity)):
+                    color = {'critical': 'red', 'high': 'yellow', 'medium': 'blue', 'low': 'dim'}[issue.severity]
+                    console.print(f"  [{color}][{issue.severity}][/{color}] {issue.description}")
+                    if issue.recommendation:
+                        console.print(f"    → {issue.recommendation}")
+                console.print()
+            
+            # Improvements
+            if report.improvements:
+                console.print("[bold]Recommended Improvements:[/bold]")
+                for imp in report.improvements:
+                    console.print(f"  • {imp}")
+                console.print()
+            
+            # Strengths
+            if report.strengths:
+                console.print("[bold green]Strengths:[/bold green]")
+                for strength in report.strengths:
+                    console.print(f"  ✓ {strength}")
+            
+        else:
+            # Analyze directory
+            console.info(f"Analyzing files in: {target_dir}")
+            reports = await analyzer.analyze_directory(target_dir)
+            
+            if not reports:
+                console.warning("No files found to analyze.")
+                return
+            
+            # Generate summary
+            summary = analyzer.generate_summary_report(reports)
+            console.print(summary)
+            
+            # Save to file if requested
+            if output:
+                output.write_text(summary)
+                console.success(f"Report saved to: {output}")
+        
+    except Exception as e:
+        console.error(f"Error during quality analysis: {e}")
+        if ctx.obj.get('verbose'):
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+
+
 @cli.group()
 def ldd() -> None:
     """LDD (Log-Driven Development) commands."""
@@ -307,7 +410,20 @@ async def ldd_memory(ctx: click.Context, description: str, type: str,
 def main() -> None:
     """Main entry point for CLI."""
     # Handle async commands
-    if len(sys.argv) > 1 and sys.argv[1] in ['extract', 'analyze']:
+    async_commands = ['extract', 'analyze', 'quality']
+    
+    # Check if we need to run async
+    needs_async = False
+    for cmd in async_commands:
+        if cmd in sys.argv:
+            needs_async = True
+            break
+    
+    # Also check for ldd subcommands
+    if 'ldd' in sys.argv and any(subcmd in sys.argv for subcmd in ['init', 'task', 'memory']):
+        needs_async = True
+    
+    if needs_async:
         # Create new event loop for async commands
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

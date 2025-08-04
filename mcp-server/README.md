@@ -1,37 +1,80 @@
 # YAML Context Engineering MCP Server
 
-階層的なコンテキスト情報を抽出し、YAML形式のドキュメントを自動生成するMCPサーバー実装。
+📚 階層的かつ構造化されたコンテキスト情報を抽出し、生成AIが参照可能なYAML形式の.mdファイルとして自動的に整理・永続化するMCPサーバー
 
-## 機能
+## ✨ 特徴
 
-- **URLクロール**: 指定されたURLからコンテンツを取得
-- **階層構造抽出**: L1、L2、L3レベルの見出し構造を自動識別
-- **コンテンツ要約**: 各セクションの内容を要約・抽出
-- **YAML生成**: 構造化されたYAML frontmatterを持つMarkdownファイルを生成
-- **自律的クロール**: 関連URLを発見し、再帰的に処理
+- 🌐 **ウェブクローリング**: URLから自動的にコンテンツを取得
+- 📊 **階層構造抽出**: L1, L2, L3などの見出し構造を自動識別
+- 📝 **YAMLフロントマター**: メタデータを含む構造化されたドキュメント生成
+- 🔍 **品質分析**: 抽出されたコンテンツの品質を自動評価
+- 🔌 **プラグインシステム**: 拡張可能なアーキテクチャ
+- 🤖 **Claude統合**: Claude CodeとClaude Desktopとの完全統合
+- 📚 **LDD (Log-Driven Development)**: ログベースの開発サポート
 
-## インストール
+## 🚀 クイックスタート
 
-```bash
-pip install -e .
-```
-
-## 使用方法
-
-### MCPサーバーとして起動
+### 1. リポジトリのクローン
 
 ```bash
-yaml-context-mcp
+git clone https://github.com/yourusername/yaml-context-engineering.git
+cd yaml-context-engineering
 ```
 
-### プログラムから使用
+### 2. 仮想環境の作成と依存関係のインストール
 
-```python
-from yaml_context_engineering import YamlContextServer
-
-server = YamlContextServer()
-await server.start()
+```bash
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
+
+### 3. Claude Desktop設定
+
+Claude Desktopの設定ファイルに以下を追加:
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "yaml-context-engineering": {
+      "command": "python3",
+      "args": ["-m", "yaml_context_engineering.main"],
+      "cwd": "/Users/your-username/Dev/yaml-context-engineering",
+      "env": {
+        "PYTHONPATH": "/Users/your-username/Dev/yaml-context-engineering/src",
+        "MCP_OUTPUT_DIRECTORY": "/Users/your-username/generated_contexts"
+      }
+    }
+  }
+}
+```
+
+### 4. Claude Code設定（グローバル）
+
+`~/.claude/settings.json`に同様の設定を追加
+
+## 📖 使い方
+
+### Claude Codeでの使用
+
+グローバルスラッシュコマンドが利用可能:
+
+```bash
+# コンテキストを抽出
+/extract-context https://example.com/docs
+
+# 品質を分析
+/analyze-quality generated_contexts/
+
+# プロジェクトをセットアップ
+/setup-yaml-context my-project
+```
+
+### Claude Desktopでの使用
+
+MCPツールが自動的に利用可能になります。
 
 ## ツール
 
