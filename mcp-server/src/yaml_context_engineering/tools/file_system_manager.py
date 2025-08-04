@@ -90,8 +90,8 @@ class FileSystemManager:
         
         # Prepare frontmatter
         frontmatter = {
-            "title": content.get("title", "Untitled"),
-            "source_url": content.get("source_url", ""),
+            "title": str(content.get("title", "Untitled")),
+            "source_url": str(content.get("source_url", "")),
             "last_updated": content.get("last_updated", datetime.utcnow().isoformat() + "Z"),
             "content_type": content.get("content_type", "documentation"),
             "language": content.get("language", "ja"),
