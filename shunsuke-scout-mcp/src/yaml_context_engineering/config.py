@@ -43,7 +43,7 @@ class OutputConfig:
 class Config:
     """Main configuration class."""
     
-    server_name: str = "yaml-context-engineering"
+    server_name: str = "shunsuke-scout-mcp"
     server_version: str = "1.0.0"
     log_level: str = "INFO"
     

@@ -76,11 +76,15 @@ game_plan:
 # 諜報・分析ユニット仕様 (Context Engineering Agent Specification)
 # ===================================================================
 scouting_unit_spec:
-  name: "YAML Context Engineering Agent"
+  name: "Shunsuke Scout MCP - シュンスケ式諜報MCPサーバー"
+  model_name: "ShunsukeModel / ScoutUnit / v1.0.0"
   version: "1.0.0"
-  description: "多様な情報源からピッチの状況を正確に把握し、司令塔が参照可能なYAML形式の戦術データとして構造化・永続化する自律型諜報・分析ユニット。"
+  description: |
+    多様な情報源からピッチの状況を正確に把握し、司令塔が参照可能なYAML形式の戦術データとして
+    構造化・永続化する自律型諜報・分析ユニット。シュンスケ式戦術遂行モデルの中核を担う。
   
   deployment_status:
+    mcp_server_name: "shunsuke-scout-mcp"
     claude_code_global: "✅ デプロイ済み"
     claude_desktop_mcp: "✅ デプロイ済み"
     command_location: "~/.claude/commands/"
@@ -112,7 +116,7 @@ scouting_unit_spec:
       creates: ["generated_contexts/", "config.yaml", "@memory-bank.md"]
   
   repository:
-    location: "/Users/shunsuke/Dev/Dev_Claude/mcp-server"
+    location: "/Users/shunsuke/Dev/Dev_Claude/shunsuke-scout-mcp"
     structure:
       src: "ソースコード (Python)"
       tests: "テストスイート"

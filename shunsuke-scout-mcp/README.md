@@ -1,6 +1,8 @@
-# YAML Context Engineering MCP Server
+# Shunsuke Scout MCP - シュンスケ式諜報MCPサーバー
 
-📚 階層的かつ構造化されたコンテキスト情報を抽出し、生成AIが参照可能なYAML形式の.mdファイルとして自動的に整理・永続化するMCPサーバー
+🕵️ **ShunsukeModel / ScoutUnit / v1.0.0**
+
+多様な情報源からピッチの状況を正確に把握し、司令塔が参照可能なYAML形式の戦術データとして構造化・永続化する自律型諜報・分析ユニット。シュンスケ式戦術遂行モデルの中核を担う、階層的コンテキスト抽出MCPサーバー。
 
 ## ✨ 特徴
 

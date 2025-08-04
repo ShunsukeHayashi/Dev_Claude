@@ -33,7 +33,7 @@ class YamlContextServer:
         """
         self.config = config
         self.logger = get_logger(__name__)
-        self.server = Server("yaml-context-engineering")
+        self.server = Server("shunsuke-scout-mcp")
         
         # Initialize tools
         self.web_fetcher = WebContentFetcher(config)
