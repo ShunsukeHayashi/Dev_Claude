@@ -2,6 +2,21 @@
 
 Claude Code用のMCPツールとして、階層的なコンテキスト情報を抽出し、YAML形式のドキュメントを自動生成するツールセット。
 
+## 🎉 プロジェクトステータス
+
+- **MVP**: ✅ **完成** (2025-08-04)
+- **Phase 1**: ✅ 完了 - Core MCP Server実装
+- **Phase 2**: 🚧 **開始** - Claude Code統合強化
+- **Phase 3**: 📅 計画中 - GitHub Actions自動化
+- **Phase 4**: 📅 計画中 - 高度な機能実装
+
+### 最新の更新
+- ✅ MVPが完成し、基本的なURL抽出とYAML生成が動作
+- ✅ CLIインターフェース実装完了
+- ✅ 5つのMCPツール実装完了
+- 🔧 YAMLシリアライズの問題を修正
+- 🚀 Phase 2: Claude Code統合の開発開始
+
 ## 概要
 
 このプロジェクトは、Claude Codeの拡張ツールとして機能するMCPサーバーです。様々な形式の入力（URL、テキスト、構造化データ）から階層的かつ構造化されたコンテキスト情報を抽出し、Claude Codeが参照可能なYAML形式の.mdファイルとして自動的に整理・永続化します。
@@ -264,8 +279,25 @@ MIT License - 詳細は[LICENSE](LICENSE)ファイルを参照してください
 
 ## 今後の計画
 
-- [ ] Phase 2: Claude Code統合の強化
-- [ ] Phase 3: GitHub Actions自動化
-- [ ] Phase 4: 高度な機能（品質分析、プラグイン対応）
+### Phase 2: Claude Code統合の強化 🚧 **進行中**
+- [ ] カスタムスラッシュコマンドの実装
+  - `/extract-context` - URLからコンテキストを抽出
+  - `/setup-project` - プロジェクト初期化
+  - `/generate-agent` - 専門エージェント生成
+- [ ] Hooks configurationの設定
+- [ ] Sub-agent definitionsの作成
+- [ ] Local testing environmentの構築
+
+### Phase 3: GitHub Actions自動化 📅
+- [ ] CI/CDワークフローの実装
+- [ ] PR review automationの設定
+- [ ] Issue processing automationの実装
+- [ ] Documentation generationの自動化
+
+### Phase 4: 高度な機能 📅
+- [ ] Quality analysis systemの実装
+- [ ] Plugin architectureの開発
+- [ ] Performance optimizationの実施
+- [ ] Comprehensive testingの実施
 
 詳細は[PLANNING.md](PLANNING.md)を参照してください。
