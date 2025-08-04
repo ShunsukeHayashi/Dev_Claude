@@ -1,0 +1,40 @@
+# YAML Context Engineering Agent Code Owners
+# These owners will be automatically requested for review
+
+# Default owners for everything
+* @claude
+
+# MCP Server components
+/mcp-server/ @claude
+/mcp-server/src/yaml_context_engineering/tools/ @claude
+/mcp-server/tests/ @claude
+
+# Claude Code integration
+/.claude/ @claude
+/.claude/commands/ @claude
+/.claude/agents/ @claude
+/.claude/hooks/ @claude
+
+# GitHub Actions workflows
+/.github/workflows/ @claude
+/.github/*.yml @claude
+
+# Documentation
+/docs/ @claude
+*.md @claude
+/README.md @claude
+/PLANNING.md @claude
+
+# Configuration files
+/config.yaml @claude
+/.claude/settings.json @claude
+
+# Test suites
+/test-claude-code/ @claude
+/tests/ @claude
+
+# Generated content (no automatic review needed)
+/generated_contexts/ 
+
+# LDD system logs (no automatic review needed)
+/generated_contexts/logs/

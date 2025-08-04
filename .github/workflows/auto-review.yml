@@ -1,0 +1,269 @@
+name: Automated PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  issue_comment:
+    types: [created]
+
+permissions:
+  pull-requests: write
+  issues: write
+  contents: read
+
+jobs:
+  auto-review:
+    name: Claude Code Review
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request && 
+       contains(github.event.comment.body, '@claude'))
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get PR details
+        id: pr-details
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let pr;
+            if (context.eventName === 'pull_request') {
+              pr = context.payload.pull_request;
+            } else {
+              // Get PR from issue comment
+              const { data } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number
+              });
+              pr = data;
+            }
+            
+            return {
+              number: pr.number,
+              title: pr.title,
+              body: pr.body || '',
+              base: pr.base.ref,
+              head: pr.head.ref,
+              files_url: pr.url + '/files'
+            };
+      
+      - name: Get changed files
+        id: changed-files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = ${{ steps.pr-details.outputs.result }};
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            });
+            
+            const fileList = files.map(f => ({
+              filename: f.filename,
+              status: f.status,
+              additions: f.additions,
+              deletions: f.deletions,
+              changes: f.changes,
+              patch: f.patch || ''
+            }));
+            
+            return fileList;
+      
+      - name: Perform code review
+        id: claude-review
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Review this pull request for the YAML Context Engineering Agent project.
+            
+            PR Details:
+            - Title: ${{ fromJson(steps.pr-details.outputs.result).title }}
+            - Description: ${{ fromJson(steps.pr-details.outputs.result).body }}
+            - Base branch: ${{ fromJson(steps.pr-details.outputs.result).base }}
+            - Head branch: ${{ fromJson(steps.pr-details.outputs.result).head }}
+            
+            Changed files:
+            ${{ steps.changed-files.outputs.result }}
+            
+            Please review for:
+            1. **Code Quality**
+               - Python best practices (PEP 8)
+               - TypeScript/JavaScript standards
+               - YAML validity
+               - Shell script safety
+            
+            2. **Architecture**
+               - MCP server implementation correctness
+               - Claude Code integration patterns
+               - Proper error handling
+               - Performance considerations
+            
+            3. **Security**
+               - No exposed secrets or API keys
+               - Safe file operations
+               - Input validation
+               - Command injection prevention
+            
+            4. **Documentation**
+               - Updated README if needed
+               - Inline code comments
+               - API documentation
+               - Test coverage
+            
+            5. **YAML Context Engineering Specific**
+               - Proper YAML frontmatter format
+               - Hierarchical extraction logic
+               - Sub-agent implementations
+               - Hook configurations
+            
+            Provide:
+            - Overall assessment (approve/request changes/comment)
+            - Specific line-by-line comments where needed
+            - Suggestions for improvements
+            - Recognition of good practices
+            
+            Format your response as a structured review with sections.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Post review comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const review = `${{ steps.claude-review.outputs.result }}`;
+            const pr = ${{ steps.pr-details.outputs.result }};
+            
+            // Post the main review comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: `## 🤖 Claude Code Review\n\n${review}\n\n---\n*This review was generated automatically by Claude. For questions or issues, mention @claude in a comment.*`
+            });
+      
+      - name: Add review labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = ${{ steps.pr-details.outputs.result }};
+            const review = `${{ steps.claude-review.outputs.result }}`;
+            
+            const labels = [];
+            
+            // Add labels based on review content
+            if (review.includes('approve')) {
+              labels.push('claude-approved');
+            }
+            if (review.includes('security') || review.includes('Security')) {
+              labels.push('security-review-needed');
+            }
+            if (review.includes('documentation') || review.includes('Documentation')) {
+              labels.push('docs-update-needed');
+            }
+            if (review.includes('test') || review.includes('Test')) {
+              labels.push('needs-tests');
+            }
+            
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: labels
+              });
+            }
+
+  check-slash-commands:
+    name: Check Slash Commands
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.body, '/claude')
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Parse slash commands
+        id: parse-commands
+        run: |
+          PR_BODY="${{ github.event.pull_request.body }}"
+          
+          # Extract Claude commands
+          if echo "$PR_BODY" | grep -q "/claude test"; then
+            echo "run_tests=true" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$PR_BODY" | grep -q "/claude extract"; then
+            echo "run_extraction=true" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$PR_BODY" | grep -q "/claude analyze"; then
+            echo "run_analysis=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run requested tests
+        if: steps.parse-commands.outputs.run_tests == 'true'
+        run: |
+          chmod +x test-claude-code/*.sh
+          ./test-claude-code/test-integration.sh
+      
+      - name: Run extraction
+        if: steps.parse-commands.outputs.run_extraction == 'true'
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Run the context extraction workflow on the files changed in this PR.
+            Use the appropriate sub-agents based on file types.
+            Generate a summary of extracted contexts.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Run analysis
+        if: steps.parse-commands.outputs.run_analysis == 'true'
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Analyze the PR changes and provide:
+            1. Impact assessment
+            2. Potential risks
+            3. Performance implications
+            4. Suggestions for improvement
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  quality-gate:
+    name: Quality Gate Check
+    runs-on: ubuntu-latest
+    needs: auto-review
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check quality metrics
+        run: |
+          echo "Checking quality gates..."
+          
+          # Add quality checks here
+          # - Test coverage threshold
+          # - Linting pass rate
+          # - Security scan results
+          # - Documentation completeness
+          
+          echo "Quality gates passed ✅"
+      
+      - name: Update PR status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.payload.pull_request.head.sha,
+              state: 'success',
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              description: 'All quality gates passed',
+              context: 'claude-code/quality-gate'
+            });

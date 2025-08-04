@@ -1,0 +1,439 @@
+name: Documentation Generation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.py'
+      - '**.ts'
+      - '**.js'
+      - '**.md'
+      - '.claude/**'
+      - 'mcp-server/**'
+  workflow_dispatch:
+    inputs:
+      full_rebuild:
+        description: 'Full documentation rebuild'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  generate-api-docs:
+    name: Generate API Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install documentation tools
+        run: |
+          pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints
+          pip install pydoc-markdown mkdocs mkdocs-material
+          cd mcp-server && pip install -e .
+      
+      - name: Generate Python API docs
+        run: |
+          mkdir -p docs/api/python
+          
+          # Generate Sphinx documentation
+          sphinx-quickstart -q \
+            -p "YAML Context Engineering" \
+            -a "YAML Context Engineering Team" \
+            -v "1.0.0" \
+            --ext-autodoc \
+            --ext-viewcode \
+            --makefile \
+            docs/api/python
+          
+          # Configure Sphinx
+          cat >> docs/api/python/conf.py << EOF
+          
+          import os
+          import sys
+          sys.path.insert(0, os.path.abspath('../../../mcp-server/src'))
+          
+          extensions.extend(['sphinx.ext.napoleon', 'sphinx_autodoc_typehints'])
+          napoleon_google_docstring = True
+          napoleon_numpy_docstring = True
+          EOF
+          
+          # Generate API documentation
+          sphinx-apidoc -o docs/api/python/source ../mcp-server/src/yaml_context_engineering
+          
+          # Build HTML docs
+          cd docs/api/python && make html
+      
+      - name: Generate MCP tool documentation
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Generate comprehensive documentation for all MCP tools in the YAML Context Engineering Agent.
+            
+            For each tool in mcp-server/src/yaml_context_engineering/tools/:
+            1. Document parameters with types and descriptions
+            2. Provide usage examples
+            3. Show expected outputs
+            4. Include error scenarios
+            5. Add best practices
+            
+            Create a structured Markdown file at docs/api/mcp-tools.md
+            
+            Tools to document:
+            - web_content_fetcher
+            - llm_structure_extractor
+            - url_discovery_engine
+            - file_system_manager
+            - ldd_manager
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Upload API documentation
+        uses: actions/upload-artifact@v3
+        with:
+          name: api-documentation
+          path: docs/api/
+
+  generate-user-guide:
+    name: Generate User Guide
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create user guide with Claude
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Create a comprehensive user guide for the YAML Context Engineering Agent.
+            
+            Structure:
+            1. **Getting Started**
+               - Installation (MCP server, Claude Code setup)
+               - Configuration
+               - First extraction
+            
+            2. **Core Features**
+               - URL extraction
+               - File processing
+               - Hierarchical analysis
+               - YAML generation
+            
+            3. **Claude Code Integration**
+               - Slash commands guide
+               - Sub-agents usage
+               - Hooks customization
+            
+            4. **Advanced Usage**
+               - Custom agents
+               - Plugin development
+               - Performance tuning
+            
+            5. **Troubleshooting**
+               - Common issues
+               - Debug techniques
+               - FAQ
+            
+            Create at docs/user-guide/index.md with sub-pages as needed.
+            Include practical examples and screenshots placeholders.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Generate command reference
+        run: |
+          mkdir -p docs/reference
+          
+          # Create command reference
+          cat > docs/reference/commands.md << 'EOF'
+          # Command Reference
+          
+          ## Slash Commands
+          
+          ### /extract-context
+          Extract hierarchical context from sources.
+          
+          **Syntax**: `/extract-context [sources...]`
+          
+          **Examples**:
+          ```
+          /extract-context https://docs.example.com
+          /extract-context file.md
+          /extract-context "raw text to analyze"
+          ```
+          
+          ### /setup-project
+          Initialize a new YAML Context Engineering project.
+          
+          **Syntax**: `/setup-project [project-name]`
+          
+          **Examples**:
+          ```
+          /setup-project
+          /setup-project my-docs-project
+          ```
+          
+          ### /generate-agent
+          Create a specialized sub-agent.
+          
+          **Syntax**: `/generate-agent [specialization]`
+          
+          **Examples**:
+          ```
+          /generate-agent api-docs
+          /generate-agent tutorial
+          /generate-agent custom "Legal analyzer"
+          ```
+          EOF
+
+  generate-architecture-docs:
+    name: Generate Architecture Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Analyze codebase structure
+        id: analyze-structure
+        run: |
+          # Create architecture overview
+          mkdir -p docs/architecture
+          
+          # Generate file tree
+          tree -I 'node_modules|__pycache__|*.pyc|.git' > docs/architecture/project-structure.txt
+          
+          # Count lines of code
+          echo "## Code Statistics" > docs/architecture/statistics.md
+          echo "" >> docs/architecture/statistics.md
+          echo "### Lines of Code" >> docs/architecture/statistics.md
+          find . -name "*.py" -o -name "*.ts" -o -name "*.js" | xargs wc -l >> docs/architecture/statistics.md
+      
+      - name: Generate architecture diagrams
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Create architecture documentation with Mermaid diagrams.
+            
+            Generate docs/architecture/README.md with:
+            
+            1. **System Overview**
+               - High-level architecture diagram
+               - Component relationships
+               - Data flow
+            
+            2. **MCP Server Architecture**
+               - Tool structure
+               - Request/response flow
+               - Error handling
+            
+            3. **Claude Code Integration**
+               - Hook execution flow
+               - Sub-agent architecture
+               - Command processing
+            
+            4. **GitHub Actions Workflows**
+               - Workflow relationships
+               - Trigger mechanisms
+               - Job dependencies
+            
+            Use Mermaid for all diagrams.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  build-documentation-site:
+    name: Build Documentation Site
+    runs-on: ubuntu-latest
+    needs: [generate-api-docs, generate-user-guide, generate-architecture-docs]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all documentation
+        uses: actions/download-artifact@v3
+        with:
+          name: api-documentation
+          path: docs/api/
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install MkDocs
+        run: |
+          pip install mkdocs mkdocs-material mkdocs-mermaid2-plugin
+          pip install mkdocs-git-revision-date-localized-plugin
+      
+      - name: Create MkDocs configuration
+        run: |
+          cat > mkdocs.yml << 'EOF'
+          site_name: YAML Context Engineering Agent
+          site_description: Hierarchical context extraction and YAML documentation generation
+          site_url: https://yaml-context-engineering.github.io
+          repo_url: https://github.com/yaml-context-engineering/agent
+          repo_name: yaml-context-engineering/agent
+          
+          theme:
+            name: material
+            features:
+              - navigation.tabs
+              - navigation.sections
+              - navigation.expand
+              - navigation.top
+              - search.suggest
+              - search.highlight
+              - content.tabs.link
+              - content.code.annotation
+              - content.code.copy
+            palette:
+              - scheme: default
+                primary: indigo
+                accent: indigo
+                toggle:
+                  icon: material/brightness-7
+                  name: Switch to dark mode
+              - scheme: slate
+                primary: indigo
+                accent: indigo
+                toggle:
+                  icon: material/brightness-4
+                  name: Switch to light mode
+          
+          plugins:
+            - search
+            - mermaid2
+            - git-revision-date-localized:
+                enable_creation_date: true
+          
+          markdown_extensions:
+            - pymdownx.highlight:
+                anchor_linenums: true
+            - pymdownx.inlinehilite
+            - pymdownx.snippets
+            - pymdownx.superfences:
+                custom_fences:
+                  - name: mermaid
+                    class: mermaid
+                    format: !!python/name:pymdownx.superfences.fence_code_format
+            - admonition
+            - pymdownx.details
+            - pymdownx.tabbed:
+                alternate_style: true
+            - attr_list
+            - md_in_html
+            - toc:
+                permalink: true
+          
+          nav:
+            - Home: README.md
+            - Getting Started:
+              - Installation: docs/user-guide/installation.md
+              - Quick Start: docs/user-guide/quickstart.md
+              - Configuration: docs/user-guide/configuration.md
+            - User Guide:
+              - Overview: docs/user-guide/index.md
+              - Slash Commands: docs/reference/commands.md
+              - Sub-Agents: .claude/agents/README.md
+              - Hooks: .claude/hooks/README.md
+            - Architecture:
+              - Overview: docs/architecture/README.md
+              - MCP Server: docs/architecture/mcp-server.md
+              - Claude Integration: docs/architecture/claude-integration.md
+            - API Reference:
+              - MCP Tools: docs/api/mcp-tools.md
+              - Python API: docs/api/python/index.html
+            - Development:
+              - Contributing: CONTRIBUTING.md
+              - Testing: test-claude-code/README.md
+              - GitHub Actions: .github/workflows/README.md
+            - Project:
+              - Planning: PLANNING.md
+              - Changelog: CHANGELOG.md
+              - License: LICENSE.md
+          
+          extra:
+            social:
+              - icon: fontawesome/brands/github
+                link: https://github.com/yaml-context-engineering
+            version:
+              provider: mike
+          EOF
+      
+      - name: Build documentation site
+        run: |
+          mkdocs build --strict
+      
+      - name: Upload documentation site
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: ./site
+
+  deploy-docs:
+    name: Deploy Documentation
+    runs-on: ubuntu-latest
+    needs: build-documentation-site
+    if: github.ref == 'refs/heads/main'
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+
+  update-readme:
+    name: Update README with Stats
+    runs-on: ubuntu-latest
+    needs: [generate-api-docs, generate-user-guide]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update README badges and stats
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Update the README.md file with:
+            
+            1. Add/update badges at the top:
+               - Build status
+               - Documentation status
+               - Coverage percentage
+               - License
+               - Version
+            
+            2. Add/update statistics section:
+               - Total tools: 5
+               - Sub-agents: 5
+               - Slash commands: 3
+               - Supported formats: HTML, Markdown, YAML, JSON
+            
+            3. Add/update quick links:
+               - Documentation site
+               - API reference
+               - User guide
+               - Contributing guide
+            
+            Keep all existing content, just add/update these sections.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Commit README updates
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add README.md
+          git diff --staged --quiet || git commit -m "docs: Update README with latest stats and badges"
+          git push

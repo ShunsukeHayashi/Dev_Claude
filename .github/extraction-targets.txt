@@ -1,0 +1,18 @@
+# Regular extraction targets for scheduled updates
+# Add URLs here that should be regularly checked for updates
+
+# Python Documentation
+https://docs.python.org/3/tutorial/
+https://docs.python.org/3/library/asyncio.html
+
+# MCP Documentation
+https://modelcontextprotocol.io/docs/
+https://modelcontextprotocol.io/docs/concepts/
+
+# Claude Documentation
+https://docs.anthropic.com/claude/docs/
+https://docs.anthropic.com/claude/docs/claude-code
+
+# GitHub Actions
+https://docs.github.com/en/actions
+https://docs.github.com/en/actions/using-workflows

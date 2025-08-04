@@ -1,0 +1,318 @@
+name: Issue Processing Automation
+
+on:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  process-new-issue:
+    name: Process New Issue
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Analyze issue with Claude
+        id: analyze-issue
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Analyze this new issue for the YAML Context Engineering Agent project:
+            
+            Title: ${{ github.event.issue.title }}
+            Body: ${{ github.event.issue.body }}
+            Author: ${{ github.event.issue.user.login }}
+            
+            Determine:
+            1. **Issue Type**: bug, feature, documentation, question, task
+            2. **Priority**: critical, high, medium, low
+            3. **Component**: mcp-server, claude-code, github-actions, docs, testing
+            4. **Complexity**: simple, moderate, complex
+            5. **Suggested Labels**: List applicable labels
+            6. **Initial Response**: Draft a helpful response
+            
+            For bugs:
+            - Check if reproduction steps are provided
+            - Identify missing information
+            - Suggest diagnostic steps
+            
+            For features:
+            - Assess alignment with project goals
+            - Identify implementation considerations
+            - Suggest related existing features
+            
+            For questions:
+            - Provide direct answers if possible
+            - Link to relevant documentation
+            - Suggest better communication channels if needed
+            
+            Return a JSON object with your analysis.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Apply labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const analysis = JSON.parse(`${{ steps.analyze-issue.outputs.result }}`);
+            
+            const labels = [];
+            
+            // Add type label
+            if (analysis.issue_type) {
+              labels.push(`type:${analysis.issue_type}`);
+            }
+            
+            // Add priority label
+            if (analysis.priority) {
+              labels.push(`priority:${analysis.priority}`);
+            }
+            
+            // Add component label
+            if (analysis.component) {
+              labels.push(`component:${analysis.component}`);
+            }
+            
+            // Add complexity label
+            if (analysis.complexity) {
+              labels.push(`complexity:${analysis.complexity}`);
+            }
+            
+            // Add suggested labels
+            if (analysis.suggested_labels) {
+              labels.push(...analysis.suggested_labels);
+            }
+            
+            // Apply labels
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: labels
+              });
+            }
+      
+      - name: Post initial response
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const analysis = JSON.parse(`${{ steps.analyze-issue.outputs.result }}`);
+            
+            if (analysis.initial_response) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: analysis.initial_response + '\n\n---\n*This response was generated automatically. A human maintainer will follow up soon.*'
+              });
+            }
+
+  handle-extraction-request:
+    name: Handle Extraction Request
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'issues' && 
+      github.event.action == 'labeled' && 
+      github.event.label.name == 'extraction-request'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Process extraction request
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            This issue has been labeled as an extraction request.
+            
+            Issue content: ${{ github.event.issue.body }}
+            
+            1. Extract all URLs from the issue
+            2. Determine the appropriate extraction strategy
+            3. Run the extraction using the YAML Context Engineering tools
+            4. Create a summary of extracted content
+            5. Post results back to the issue
+            
+            If no URLs are found, ask for clarification.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Update issue status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['status:in-progress']
+            });
+
+  respond-to-mentions:
+    name: Respond to Claude Mentions
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'issue_comment' && 
+      contains(github.event.comment.body, '@claude')
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Process mention
+        id: process-mention
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Someone mentioned me in an issue comment. Analyze and respond appropriately.
+            
+            Issue #${{ github.event.issue.number }}
+            Title: ${{ github.event.issue.title }}
+            Comment by: ${{ github.event.comment.user.login }}
+            Comment: ${{ github.event.comment.body }}
+            
+            Context about this project:
+            - YAML Context Engineering Agent for hierarchical content extraction
+            - MCP server implementation
+            - Claude Code integration
+            - Automated workflows
+            
+            Provide a helpful response that:
+            1. Addresses their question or request
+            2. Offers specific technical guidance
+            3. Links to relevant documentation
+            4. Suggests next steps
+            
+            Be concise but thorough.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Post response
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const response = `${{ steps.process-mention.outputs.result }}`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `@${context.payload.comment.user.login} ${response}`
+            });
+
+  triage-stale-issues:
+    name: Triage Stale Issues
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Find stale issues
+        id: find-stale
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              sort: 'updated',
+              direction: 'asc',
+              per_page: 100
+            });
+            
+            const staleIssues = issues.filter(issue => {
+              const lastUpdate = new Date(issue.updated_at);
+              return lastUpdate < thirtyDaysAgo && !issue.labels.some(l => l.name === 'stale');
+            });
+            
+            return staleIssues;
+      
+      - name: Process stale issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const staleIssues = ${{ steps.find-stale.outputs.result }};
+            
+            for (const issue of staleIssues) {
+              // Add stale label
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['stale']
+              });
+              
+              // Post comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `This issue has been automatically marked as stale because it has not had recent activity. It will be closed if no further activity occurs within 7 days. Thank you for your contributions.`
+              });
+            }
+
+  create-task-from-issue:
+    name: Create Task from Issue
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'issues' && 
+      github.event.action == 'labeled' && 
+      github.event.label.name == 'create-task'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Convert to task
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Convert this issue into a development task:
+            
+            Issue #${{ github.event.issue.number }}
+            Title: ${{ github.event.issue.title }}
+            Body: ${{ github.event.issue.body }}
+            Labels: ${{ toJson(github.event.issue.labels) }}
+            
+            Create:
+            1. A detailed task specification
+            2. Implementation steps
+            3. Acceptance criteria
+            4. Test requirements
+            5. Documentation needs
+            
+            Format as a structured task document.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Create task document
+        run: |
+          TASK_ID="TASK-${{ github.event.issue.number }}"
+          TASK_FILE="docs/tasks/${TASK_ID}.md"
+          
+          mkdir -p docs/tasks
+          
+          cat > "$TASK_FILE" << EOF
+          # ${TASK_ID}: ${{ github.event.issue.title }}
+          
+          Issue: #${{ github.event.issue.number }}
+          Created: $(date -u +"%Y-%m-%d")
+          Status: TODO
+          
+          ${{ steps.convert-to-task.outputs.result }}
+          EOF
+          
+          # Commit task file
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add "$TASK_FILE"
+          git commit -m "chore: Create task ${TASK_ID} from issue #${{ github.event.issue.number }}"
+          git push
