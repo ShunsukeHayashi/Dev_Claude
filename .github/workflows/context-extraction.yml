@@ -1,0 +1,245 @@
+name: Context Extraction
+
+on:
+  issues:
+    types: [opened, edited]
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    paths:
+      - 'docs/**'
+      - '*.md'
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: 'URLs to extract (space-separated)'
+        required: true
+        type: string
+      granularity:
+        description: 'Extraction granularity'
+        required: false
+        default: 'L1_L2'
+        type: choice
+        options:
+          - L1_only
+          - L1_L2
+          - L1_L2_L3
+          - full_hierarchy
+
+jobs:
+  extract-from-issue:
+    name: Extract Context from Issue
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Extract URLs from issue
+        id: extract-urls
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueBody = context.payload.issue.body || '';
+            const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
+            const urls = issueBody.match(urlRegex) || [];
+            
+            console.log(`Found ${urls.length} URLs in issue #${context.payload.issue.number}`);
+            return urls.join(' ');
+          result-encoding: string
+      
+      - name: Use Claude to extract context
+        if: steps.extract-urls.outputs.result != ''
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Extract hierarchical context from these URLs: ${{ steps.extract-urls.outputs.result }}
+            
+            Use the YAML Context Engineering Agent to:
+            1. Fetch content from each URL
+            2. Extract hierarchical structure (L1, L2, L3)
+            3. Generate YAML frontmatter with metadata
+            4. Save to generated_contexts directory
+            5. Update the index file
+            
+            After extraction, comment on the issue with:
+            - Number of URLs processed
+            - Files created
+            - Any errors encountered
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Comment on issue
+        if: steps.extract-urls.outputs.result != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🤖 Context extraction completed! Check the `generated_contexts` directory for results.'
+            });
+
+  extract-from-pr:
+    name: Extract Context from PR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get changed documentation files
+        id: changed-files
+        uses: tj-actions/changed-files@v40
+        with:
+          files: |
+            **/*.md
+            docs/**
+      
+      - name: Extract context from changed files
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Extract and update context for these changed documentation files:
+            ${{ steps.changed-files.outputs.all_changed_files }}
+            
+            For each file:
+            1. Read the content
+            2. Extract hierarchical structure
+            3. Generate YAML frontmatter
+            4. Create/update context file in generated_contexts
+            5. Ensure proper categorization
+            
+            Focus on maintaining consistency with existing context files.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Commit context updates
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add generated_contexts/
+          git diff --staged --quiet || git commit -m "chore: Update extracted contexts"
+      
+      - name: Push changes
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.head_ref }}
+
+  manual-extraction:
+    name: Manual Context Extraction
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install MCP server
+        run: |
+          cd mcp-server && pip install -e .
+      
+      - name: Extract context using Claude
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Extract hierarchical context from these URLs: ${{ github.event.inputs.urls }}
+            
+            Configuration:
+            - Granularity: ${{ github.event.inputs.granularity }}
+            - Use the YAML Context Engineering MCP server
+            - Save all extracted content to generated_contexts/
+            - Create comprehensive YAML frontmatter
+            - Update the index file
+            
+            Report:
+            - Total URLs processed
+            - Success/failure count
+            - Files generated
+            - Total extraction time
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Create extraction report
+        run: |
+          echo "# Context Extraction Report" > extraction-report.md
+          echo "Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> extraction-report.md
+          echo "URLs: ${{ github.event.inputs.urls }}" >> extraction-report.md
+          echo "Granularity: ${{ github.event.inputs.granularity }}" >> extraction-report.md
+          echo "" >> extraction-report.md
+          echo "## Generated Files" >> extraction-report.md
+          find generated_contexts -name "*.md" -newer .github/workflows/context-extraction.yml -type f | while read file; do
+            echo "- $file" >> extraction-report.md
+          done
+      
+      - name: Upload extraction report
+        uses: actions/upload-artifact@v3
+        with:
+          name: extraction-report
+          path: extraction-report.md
+      
+      - name: Upload generated contexts
+        uses: actions/upload-artifact@v3
+        with:
+          name: generated-contexts
+          path: generated_contexts/
+
+  scheduled-extraction:
+    name: Scheduled Context Update
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[extract]'))
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Read extraction targets
+        id: targets
+        run: |
+          if [ -f ".github/extraction-targets.txt" ]; then
+            TARGETS=$(cat .github/extraction-targets.txt | tr '\n' ' ')
+            echo "targets=$TARGETS" >> $GITHUB_OUTPUT
+          else
+            echo "targets=" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Extract from targets
+        if: steps.targets.outputs.targets != ''
+        uses: anthropics/claude-code-action@beta
+        with:
+          prompt: |
+            Update context extraction for these regular targets:
+            ${{ steps.targets.outputs.targets }}
+            
+            For each URL:
+            1. Check if content has changed since last extraction
+            2. If changed, re-extract with full hierarchy
+            3. Update existing context files
+            4. Note changes in extraction log
+            
+            Skip unchanged content to save resources.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Create PR with updates
+        if: steps.targets.outputs.targets != ''
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: Update extracted contexts"
+          title: "Automated Context Update"
+          body: |
+            This PR contains automated context updates from scheduled extraction.
+            
+            Targets processed:
+            ${{ steps.targets.outputs.targets }}
+            
+            Please review the changes before merging.
+          branch: automated-context-update
+          delete-branch: true

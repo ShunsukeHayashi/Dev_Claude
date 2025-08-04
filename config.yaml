@@ -1,0 +1,119 @@
+# YAML Context Engineering Agent Configuration
+name: yaml-context-engineering
+version: 1.0.0
+description: Hierarchical context extraction and YAML documentation generation
+
+# Output configuration
+output:
+  base_directory: ./generated_contexts
+  create_subdirs: true
+  index_filename: index.md
+  
+# Extraction settings
+extraction:
+  default_granularity: L1_L2  # Options: L1_only, L1_L2, L1_L2_L3, full_hierarchy
+  default_summarization: detailed  # Options: none, brief, detailed, full
+  enable_language_detection: true
+  extract_metadata: true
+  confidence_threshold: 0.7
+
+# Crawling configuration
+crawling:
+  max_depth: 3
+  max_pages_per_domain: 100
+  crawl_delay_seconds: 1.0
+  user_agent: "YAML-Context-Engineering-Agent/1.0"
+  respect_robots_txt: true
+  allowed_domains: []  # Empty means all domains allowed
+  blocked_domains:
+    - "localhost"
+    - "127.0.0.1"
+
+# LDD (Log-Driven Development) configuration
+ldd:
+  enabled: true
+  logs_directory: ./generated_contexts/logs
+  memory_bank_path: ./generated_contexts/@memory-bank.md
+  auto_logging: true
+  log_retention_days: 30
+  
+  # Log categories
+  categories:
+    tasks: true
+    system: true
+    metrics: true
+    feedback: true
+
+# Quality settings
+quality:
+  min_content_length: 100  # Minimum characters for valid extraction
+  require_headings: true
+  validate_urls: true
+  check_duplicates: true
+  
+  # Quality thresholds (0-100)
+  thresholds:
+    completeness: 70
+    consistency: 75
+    accuracy: 80
+    usability: 70
+
+# Agent settings
+agents:
+  timeout_seconds: 300
+  max_retries: 3
+  retry_delay_seconds: 5
+  
+  # Agent-specific configurations
+  api_docs_specialist:
+    extract_code_samples: true
+    group_by_resource: true
+    include_rate_limits: true
+    
+  tutorial_specialist:
+    extract_prerequisites: true
+    number_steps: true
+    include_time_estimates: true
+    
+  knowledge_base_specialist:
+    extract_related_articles: true
+    optimize_for_search: true
+    include_troubleshooting: true
+
+# Performance settings
+performance:
+  max_concurrent_requests: 5
+  request_timeout_seconds: 30
+  cache_enabled: true
+  cache_ttl_minutes: 60
+  
+# File handling
+files:
+  max_file_size_mb: 10
+  supported_formats:
+    - .md
+    - .html
+    - .htm
+    - .txt
+    - .json
+    - .yaml
+    - .yml
+  
+  # File naming
+  sanitize_filenames: true
+  max_filename_length: 100
+  
+# Logging
+logging:
+  level: INFO  # Options: DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: ./logs/yaml-context-engineering.log
+  max_size_mb: 50
+  backup_count: 5
+
+# Development settings
+development:
+  debug_mode: false
+  verbose_output: false
+  save_raw_content: false
+  enable_profiling: false

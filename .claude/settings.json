@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '[$(date \"+%Y-%m-%d %H:%M:%S\")] Executing: $TOOL_INPUT' >> ~/.claude/yaml-context-engineering.log"
+            "command": "bash /Users/shunsuke/Dev/Dev_Claude/.claude/hooks/pre-tool-use-bash.sh"
           }
         ]
       },
@@ -29,18 +29,18 @@
         "hooks": [
           {
             "type": "command", 
-            "command": "echo '[$(date \"+%Y-%m-%d %H:%M:%S\")] Writing to: $FILE_PATH' >> ~/.claude/yaml-context-engineering.log"
+            "command": "bash /Users/shunsuke/Dev/Dev_Claude/.claude/hooks/pre-tool-use-write.sh"
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Edit|Write|MultiEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "echo '[$(date \"+%Y-%m-%d %H:%M:%S\")] Modified: $FILE_PATH' >> ~/.claude/yaml-context-engineering.log"
+            "command": "bash /Users/shunsuke/Dev/Dev_Claude/.claude/hooks/post-tool-use-file.sh"
           }
         ]
       }
@@ -50,7 +50,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"YAML Context Engineering: Task requires attention\" with title \"Claude Code\"'"
+            "command": "bash /Users/shunsuke/Dev/Dev_Claude/.claude/hooks/notification-hook.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[$(date \"+%Y-%m-%d %H:%M:%S\")] Session completed' >> /Users/shunsuke/Dev/Dev_Claude/.claude/logs/session.log"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[$(date \"+%Y-%m-%d %H:%M:%S\")] Subagent completed: $AGENT_NAME' >> /Users/shunsuke/Dev/Dev_Claude/.claude/logs/subagent.log"
           }
         ]
       }
@@ -74,11 +94,28 @@
   "sub_agents": {
     "context-extractor": {
       "file": "agents/context-extractor.md",
-      "enabled": true
+      "enabled": true,
+      "description": "General hierarchical content extraction"
     },
     "quality-analyzer": {
       "file": "agents/quality-analyzer.md", 
-      "enabled": true
+      "enabled": true,
+      "description": "Content quality assessment and improvement"
+    },
+    "api-docs-specialist": {
+      "file": "agents/api-docs-specialist.md",
+      "enabled": true,
+      "description": "API documentation extraction and structuring"
+    },
+    "tutorial-specialist": {
+      "file": "agents/tutorial-specialist.md",
+      "enabled": true,
+      "description": "Tutorial and guide content processing"
+    },
+    "knowledge-base-specialist": {
+      "file": "agents/knowledge-base-specialist.md",
+      "enabled": true,
+      "description": "KB articles, FAQs, and troubleshooting guides"
     }
   },
   "slash_commands": {
