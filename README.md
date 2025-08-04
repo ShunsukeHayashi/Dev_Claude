@@ -1,303 +1,189 @@
-# YAML Context Engineering for Claude Code
+# YAML Context Engineering Agent
 
-Claude Code用のMCPツールとして、階層的なコンテキスト情報を抽出し、YAML形式のドキュメントを自動生成するツールセット。
+[![CI/CD Pipeline](https://github.com/yaml-context-engineering/agent/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/yaml-context-engineering/agent/actions)
+[![Documentation](https://img.shields.io/badge/docs-online-blue)](https://yaml-context-engineering.github.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
+[![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green)](https://modelcontextprotocol.io)
+[![Claude Code Ready](https://img.shields.io/badge/Claude%20Code-Ready-purple)](https://claude.ai/code)
 
-## 🎉 プロジェクトステータス
+様々な形式の入力から、階層的かつ構造化されたコンテキスト情報を抽出し、生成AIが参照可能なYAML形式の.mdファイルとして自動的に整理・永続化する自律型エージェント。
 
-- **MVP**: ✅ **完成** (2025-08-04)
-- **Phase 1**: ✅ 完了 - Core MCP Server実装
-- **Phase 2**: 🚧 **開始** - Claude Code統合強化
-- **Phase 3**: 📅 計画中 - GitHub Actions自動化
-- **Phase 4**: 📅 計画中 - 高度な機能実装
+## 📊 プロジェクト統計
 
-### 最新の更新
-- ✅ MVPが完成し、基本的なURL抽出とYAML生成が動作
-- ✅ CLIインターフェース実装完了
-- ✅ 5つのMCPツール実装完了
-- 🔧 YAMLシリアライズの問題を修正
-- 🚀 Phase 2: Claude Code統合の開発開始
+- **MCP Tools**: 5 (web_content_fetcher, llm_structure_extractor, url_discovery_engine, file_system_manager, ldd_manager)
+- **Sub-agents**: 5 (context-extractor, quality-analyzer, api-docs-specialist, tutorial-specialist, knowledge-base-specialist)
+- **Slash Commands**: 3 (/extract-context, /setup-project, /generate-agent)
+- **Supported Formats**: HTML, Markdown, YAML, JSON
+- **GitHub Actions**: 5 workflows (CI/CD, PR Review, Issue Processing, Context Extraction, Docs Generation)
 
-## 概要
+## 🚀 MVP実装ステータス
 
-このプロジェクトは、Claude Codeの拡張ツールとして機能するMCPサーバーです。様々な形式の入力（URL、テキスト、構造化データ）から階層的かつ構造化されたコンテキスト情報を抽出し、Claude Codeが参照可能なYAML形式の.mdファイルとして自動的に整理・永続化します。
+### Phase 1: MCP Server実装 ✅ 完了 (2025-08-03)
 
-### Claude Codeでの主な機能
+✅ **実装完了項目:**
+- Core MCP server (Python/asyncio)
+- 5つのツール実装完了
+- Content extraction engine
+- YAML generation pipeline
+- LDD (Log-Driven Development) システム
+- 包括的なテストスイート
 
-- 🌐 **URLクロール**: Claude Code内から指定URLのコンテンツを自動取得
-- 📊 **階層構造抽出**: Claude Codeの解析能力を拡張し、L1、L2、L3レベルの見出し構造を自動識別
-- 📝 **コンテンツ要約**: Claude Codeのコンテキスト管理を支援する要約機能
-- 🔄 **自律的クロール**: Claude Codeのタスク実行中に関連URLを発見し、再帰的に処理
-- 💾 **YAML生成**: Claude Codeが理解しやすい構造化されたYAML frontmatterを持つMarkdownファイルを生成
+### Phase 2: Claude Code統合 ✅ 完了 (2025-08-04)
 
-## Claude Codeプロジェクト構造
+✅ **実装完了項目:**
+- [x] カスタムスラッシュコマンドの実装
+- [x] Hooks configurationの設定
+- [x] Sub-agent definitionsの作成
+- [x] Local testing environmentの構築
 
-```
-Dev_Claude/
-├── .claude/                   # Claude Code設定（最重要）
-│   ├── settings.json         # MCPサーバー設定と統合
-│   ├── commands/             # カスタムスラッシュコマンド
-│   │   ├── extract-context.md
-│   │   ├── setup-project.md
-│   │   └── generate-agent.md
-│   └── agents/               # Claude Code用サブエージェント
-│       ├── context-extractor.md
-│       └── quality-analyzer.md
-├── mcp-server/                # Claude Code用MCPサーバー実装
-│   ├── src/                   # ソースコード
-│   │   └── yaml_context_engineering/
-│   │       ├── tools/         # Claude Codeツール実装
-│   │       ├── utils/         # ユーティリティ
-│   │       └── templates/     # YAMLテンプレート
-│   ├── tests/                 # テストスイート
-│   └── docs/                  # API ドキュメント
-├── generated_contexts/        # Claude Codeが生成したコンテキスト
-├── CLAUDE.md                 # Claude Code専用ガイドライン
-└── README.md                 # このファイル
-```
+### Phase 3: GitHub Actions自動化 ✅ 完了 (2025-08-04)
 
-## セットアップ
+✅ **実装完了項目:**
+- [x] CI/CDワークフローの実装
+- [x] PR review automationの設定
+- [x] Issue processing automationの実装
+- [x] Documentation generationの自動化
+
+## 📚 ドキュメント
+
+- 📖 [Documentation Site](https://yaml-context-engineering.github.io) - 完全なドキュメント
+- 🚀 [Getting Started Guide](docs/user-guide/quickstart.md) - クイックスタートガイド
+- 🏗️ [Architecture Overview](docs/architecture/README.md) - システムアーキテクチャ
+- 🔧 [API Reference](docs/api/mcp-tools.md) - API リファレンス
+- 🤝 [Contributing Guide](CONTRIBUTING.md) - 貢献ガイドライン
+
+## 🔧 セットアップ
 
 ### 前提条件
 
-- Claude Code（必須）
-- Python 3.9以上（MCPサーバー用）
-- pip（Pythonパッケージマネージャー）
+- Python 3.9以上
+- pip (Pythonパッケージマネージャー)
+- Git
 
-### インストール手順
+### インストール
 
-1. リポジトリのクローン
 ```bash
-git clone <repository-url>
-cd Dev_Claude
-```
+# リポジトリのクローン
+git clone https://github.com/yaml-context-engineering/agent.git
+cd yaml-context-engineering-agent
 
-2. Python仮想環境の作成（推奨）
-```bash
+# Python仮想環境の作成
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
-```
 
-3. 依存関係のインストール
-```bash
+# 依存関係のインストール
 cd mcp-server
-pip install -r requirements.txt
-```
-
-4. 開発モードでのインストール
-```bash
 pip install -e .
+
+# Claude Code設定の確認
+cat .claude/settings.json
 ```
 
-5. LDDシステムの初期化（オプション）
+## 🎯 使用方法
+
+### Claude Code スラッシュコマンド
+
 ```bash
-yaml-context ldd init
-```
-
-## 使用方法
-
-### Claude Codeでの使用（推奨）
-
-1. Claude Codeでプロジェクトを開く
-2. カスタムスラッシュコマンドを使用：
-
-```
+# URLからコンテキスト抽出
 /extract-context https://docs.example.com/api
-/setup-project my-project
+
+# 新規プロジェクトのセットアップ
+/setup-project my-context-project
+
+# 専門エージェントの生成
 /generate-agent api-docs
 ```
 
-### MCPサーバーの手動起動（開発用）
-
-```bash
-cd mcp-server
-python -m yaml_context_engineering.main
-```
-
-注: 通常はClaude Codeが自動的にMCPサーバーを起動します。
-
-### プログラムから使用
+### MCP ツール使用例
 
 ```python
-from yaml_context_engineering import YamlContextServer
-
-server = YamlContextServer()
-await server.run()
+# Claude Code内で使用
+mcp__yaml-context-engineering__web_content_fetcher urls=["https://example.com"]
+mcp__yaml-context-engineering__llm_structure_extractor content="..."
 ```
 
-## Claude Codeで利用可能なツール
-
-### 1. web_content_fetcher
-Claude Codeから指定URLのコンテンツを取得
-
-### 2. llm_structure_extractor  
-Claude Codeの理解を助ける階層構造の抽出
-
-### 3. url_discovery_engine
-Claude Codeのタスク実行中に関連URLを自動発見
-
-### 4. file_system_manager
-Claude Codeのワークスペース内でファイル管理
-
-### 5. ldd_manager
-Log-Driven Development (LDD) システムでタスク管理とナレッジ蓄積
-
-これらのツールはClaude Code内で `mcp__yaml-context-engineering__` プレフィックスで利用可能です。
-
-詳細は[docs/API.md](mcp-server/docs/API.md)を参照。
-
-## Claude Code用出力形式
-
-Claude Codeが理解しやすい形式でファイルを生成：
-
-```yaml
----
-# Claude Codeメタデータ
-title: "抽出されたコンテンツのタイトル"
-source_url: "https://source.url"
-last_updated: "2025-01-15T10:30:00Z"
-content_type: "documentation"
-language: "ja"
-
-# Claude Code解析情報
-extraction_confidence: 0.95
-claude_code_version: "1.0.0"
-extracted_by: "claude-code-context-extractor"
-extraction_timestamp: "2025-08-03T12:00:00Z"
-
-# Claude Code階層構造
-hierarchy_levels: ["L1", "L2", "L3"]
-related_sources: []
-tags: []
----
-
-# コンテンツ
-
-Claude Codeが参照しやすい階層的に整理されたコンテンツ...
-```
-
-## LDD (Log-Driven Development) システム
-
-YAML Context Engineeringには、タスク管理とナレッジ蓄積のためのLDDシステムが統合されています。
-
-### LDDの主な機能
-
-- **📝 タスクログ管理**: コンテキスト抽出タスクの詳細な記録
-- **🧠 メモリバンク**: 抽出パターンや洞察の永続化
-- **📊 パターン分析**: 成功・失敗パターンの自動分析
-- **🔍 知識検索**: 蓄積された知識の効率的な検索
-
-### LDDコマンド
+### CLI コマンド
 
 ```bash
-# LDDシステムの初期化
+# MCP サーバーの起動
+yaml-context-mcp
+
+# コンテキスト抽出（開発中）
+yaml-context extract https://example.com
+
+# LDD システム
 yaml-context ldd init
-
-# タスクログの作成
-yaml-context ldd task "APIドキュメントの抽出" -p "my-project" -m "api-docs"
-
-# メモリバンクへの追加
-yaml-context ldd memory "効率的な抽出パターンを発見" -t Pattern --tags "optimization,extraction"
-
-# タスクの更新（開発中）
-yaml-context ldd task update <task-id> --status "Completed"
-
-# メモリの検索（開発中）
-yaml-context ldd memory search "extraction pattern"
-
-# パターン分析（開発中）
-yaml-context ldd analyze
+yaml-context ldd task "Extract API docs"
 ```
 
-### LDDディレクトリ構造
+## 🏗️ アーキテクチャ
 
 ```
-generated_contexts/
-├── logs/                      # タスクログ
-│   ├── tasks/                # タスク実行ログ
-│   ├── system/               # システムログ
-│   └── metrics/              # メトリクス
-├── @memory-bank.md           # メモリバンク（知識DB）
-└── @logging_template.md      # ログテンプレート
+yaml-context-engineering-agent/
+├── .claude/                   # Claude Code 設定
+│   ├── settings.json         # 統合設定
+│   ├── commands/             # スラッシュコマンド
+│   ├── agents/               # サブエージェント
+│   └── hooks/                # フックスクリプト
+├── .github/                  # GitHub Actions
+│   └── workflows/            # 自動化ワークフロー
+├── mcp-server/               # MCP サーバー実装
+│   ├── src/                  # ソースコード
+│   └── tests/                # テストスイート
+├── generated_contexts/       # 生成されたコンテキスト
+├── test-claude-code/         # テストスクリプト
+└── config.yaml              # プロジェクト設定
 ```
 
-## 開発
+## 🛠️ 開発
 
-### テストの実行
+### テスト実行
 
 ```bash
-cd mcp-server
-pytest
+# 統合テスト
+./test-claude-code/test-integration.sh
+
+# MCP サーバーテスト
+cd mcp-server && pytest
+
+# スラッシュコマンドテスト
+./test-claude-code/test-slash-commands.sh
 ```
 
-### コードフォーマット
+### コード品質
 
 ```bash
-black src/ tests/
+# リンティング
+ruff check .
+
+# フォーマット
+black .
+
+# 型チェック
+mypy .
 ```
 
-### 型チェック
+## 🔄 Phase 4: Advanced Features (次期開発)
 
-```bash
-mypy src/
-```
-
-## トラブルシューティング
-
-### 一般的な問題
-
-1. **インポートエラー**: Python pathが正しく設定されているか確認
-2. **権限エラー**: 出力ディレクトリへの書き込み権限を確認
-3. **ネットワークエラー**: インターネット接続とプロキシ設定を確認
-
-### ログの確認
-
-詳細なログはコンソールに出力されます。ログレベルは環境変数で調整可能：
-
-```bash
-export MCP_LOG_LEVEL=DEBUG
-```
-
-## 貢献
-
-Claude Code拡張への貢献を歓迎します！
-
-1. このリポジトリをフォーク
-2. Claude Codeで開発環境をセットアップ
-3. 機能ブランチを作成 (`git checkout -b feature/claude-code-enhancement`)
-4. Claude Codeでテストを実行
-5. 変更をコミット（Claude Codeのフックが自動実行）
-6. プルリクエストを作成
-
-## ライセンス
-
-MIT License - 詳細は[LICENSE](LICENSE)ファイルを参照してください。
-
-## 関連プロジェクト
-
-- [Serena MCP Server](https://github.com/oraios/serena) - セマンティックなコード検索・編集
-- [Claude-flow](https://github.com/ruvnet/claude-flow) - AIオーケストレーションプラットフォーム
-
-## 今後の計画
-
-### Phase 2: Claude Code統合の強化 🚧 **進行中**
-- [ ] カスタムスラッシュコマンドの実装
-  - `/extract-context` - URLからコンテキストを抽出
-  - `/setup-project` - プロジェクト初期化
-  - `/generate-agent` - 専門エージェント生成
-- [ ] Hooks configurationの設定
-- [ ] Sub-agent definitionsの作成
-- [ ] Local testing environmentの構築
-
-### Phase 3: GitHub Actions自動化 📅
-- [ ] CI/CDワークフローの実装
-- [ ] PR review automationの設定
-- [ ] Issue processing automationの実装
-- [ ] Documentation generationの自動化
-
-### Phase 4: 高度な機能 📅
 - [ ] Quality analysis systemの実装
 - [ ] Plugin architectureの開発
 - [ ] Performance optimizationの実施
 - [ ] Comprehensive testingの実施
 
-詳細は[PLANNING.md](PLANNING.md)を参照してください。
+## 📝 変更履歴
+
+最新の変更については[CHANGELOG.md](CHANGELOG.md)を参照してください。
+
+## 🤝 貢献
+
+プロジェクトへの貢献を歓迎します！詳細は[CONTRIBUTING.md](CONTRIBUTING.md)をご覧ください。
+
+## 📄 ライセンス
+
+このプロジェクトはMITライセンスの下で公開されています。詳細は[LICENSE.md](LICENSE.md)をご覧ください。
+
+## 🙏 謝辞
+
+- [Anthropic](https://anthropic.com) - Claude AI と MCP プロトコル
+- [Model Context Protocol](https://modelcontextprotocol.io) - 標準化されたAI統合
+- すべての貢献者とコミュニティメンバー
