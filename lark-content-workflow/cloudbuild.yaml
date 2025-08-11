@@ -1,0 +1,71 @@
+# Google Cloud Build configuration for automatic deployment
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'build'
+      - '-f'
+      - 'Dockerfile.cloudrun'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/lark-content-workflow:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/lark-content-workflow:latest'
+      - '.'
+    dir: 'lark-content-workflow'
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/lark-content-workflow:$COMMIT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/lark-content-workflow:latest'
+
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'lark-content-workflow'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/lark-content-workflow:$COMMIT_SHA'
+      - '--region'
+      - 'europe-west1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8080'
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '2'
+      - '--max-instances'
+      - '10'
+      - '--min-instances'
+      - '0'
+      - '--timeout'
+      - '300s'
+      - '--concurrency'
+      - '80'
+      - '--set-env-vars'
+      - 'NODE_ENV=production,PORT=8080,SSE_HEARTBEAT_INTERVAL=30000,SSE_MAX_CONNECTIONS=100,CORS_ORIGIN=*'
+      - '--set-secrets'
+      - 'LARK_APP_ID=LARK_APP_ID:latest,LARK_APP_SECRET=LARK_APP_SECRET:latest,LARK_BASE_APP_TOKEN=LARK_BASE_APP_TOKEN:latest,LARK_BASE_TABLE_ID=LARK_BASE_TABLE_ID:latest'
+
+# Store images in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/lark-content-workflow:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/lark-content-workflow:latest'
+
+# Build options
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+# Build timeout
+timeout: '1200s'

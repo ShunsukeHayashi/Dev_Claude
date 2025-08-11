@@ -1,0 +1,41 @@
+# Optimized Dockerfile for Google Cloud Run
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies for better compatibility
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    && ln -sf python3 /usr/bin/python
+
+# Copy package files first for better caching
+COPY package*.json ./
+
+# Install dependencies with specific optimizations for Cloud Run
+RUN npm ci --only=production --silent && \
+    npm cache clean --force && \
+    rm -rf /tmp/*
+
+# Copy application code
+COPY . .
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S workflow -u 1001 -G nodejs
+
+# Change ownership to nodejs user
+RUN chown -R workflow:nodejs /app
+USER workflow
+
+# Expose port (Cloud Run will assign the PORT environment variable)
+EXPOSE $PORT
+
+# Health check optimized for Cloud Run
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get(\`http://localhost:\${process.env.PORT || 8080}/health\`, (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
+
+# Start command optimized for Cloud Run
+CMD ["sh", "-c", "npm run setup:base && npm start"]

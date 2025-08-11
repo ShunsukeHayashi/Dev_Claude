@@ -1,0 +1,82 @@
+name: Deploy to Google Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths: ['lark-content-workflow/**']
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: a-ifor-u-kjerms
+  SERVICE_NAME: lark-content-workflow
+  REGION: europe-west1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+          
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker
+        
+      - name: Build Docker image
+        run: |
+          cd lark-content-workflow
+          docker build -f Dockerfile.cloudrun -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
+          docker tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest
+          
+      - name: Push Docker image to GCR
+        run: |
+          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest
+          
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 2Gi \
+            --cpu 2 \
+            --max-instances 10 \
+            --min-instances 0 \
+            --timeout 300s \
+            --concurrency 80 \
+            --set-env-vars NODE_ENV=production,PORT=8080,SSE_HEARTBEAT_INTERVAL=30000,SSE_MAX_CONNECTIONS=100,CORS_ORIGIN=* \
+            --set-secrets LARK_APP_ID=LARK_APP_ID:latest,LARK_APP_SECRET=LARK_APP_SECRET:latest,LARK_BASE_APP_TOKEN=LARK_BASE_APP_TOKEN:latest,LARK_BASE_TABLE_ID=LARK_BASE_TABLE_ID:latest
+            
+      - name: Get service URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format="value(status.url)")
+          echo "Service deployed at: $SERVICE_URL"
+          echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_ENV
+          
+      - name: Health check
+        run: |
+          sleep 30  # Wait for service to be ready
+          curl -f ${{ env.SERVICE_URL }}/health || exit 1
+          echo "✅ Health check passed"
+          
+      - name: Test SSE endpoint
+        run: |
+          timeout 10s curl -H "Accept: text/event-stream" ${{ env.SERVICE_URL }}/api/workflow/stream || echo "⚠️ SSE test completed"
+          echo "✅ SSE endpoint test completed"
+          
+      - name: Notify deployment success
+        run: |
+          echo "🚀 Deployment completed successfully!"
+          echo "📊 Service URL: ${{ env.SERVICE_URL }}"
+          echo "🔍 Health endpoint: ${{ env.SERVICE_URL }}/health"
+          echo "📡 SSE endpoint: ${{ env.SERVICE_URL }}/api/workflow/stream"
