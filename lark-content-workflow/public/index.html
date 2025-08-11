@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lark Content Workflow - SSE & Base Integration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #00C4CC 0%, #7D2AE8 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .header .logo {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 968px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .panel h2 {
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .lark-badge {
+            background: linear-gradient(135deg, #00C4CC, #00A0E9);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .status-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .status-card .label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .status-card .value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .status-card.active {
+            background: linear-gradient(135deg, #00C4CC22, #7D2AE822);
+            border: 2px solid #00C4CC;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #00C4CC;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00C4CC, #00A0E9);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 196, 204, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-lark {
+            background: linear-gradient(135deg, #00C4CC, #7D2AE8);
+            color: white;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .workflow-stages {
+            margin-bottom: 30px;
+        }
+        
+        .stage-list {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            padding: 20px 0;
+            overflow-x: auto;
+        }
+        
+        .stage-item {
+            position: relative;
+            text-align: center;
+            min-width: 80px;
+            flex: 1;
+        }
+        
+        .stage-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #e0e0e0;
+            margin: 0 auto 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .stage-item.active .stage-circle {
+            border-color: #00C4CC;
+            background: #00C4CC;
+            color: white;
+            transform: scale(1.2);
+        }
+        
+        .stage-item.completed .stage-circle {
+            border-color: #4caf50;
+            background: #4caf50;
+            color: white;
+        }
+        
+        .stage-label {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00C4CC, #7D2AE8);
+            transition: width 0.5s ease;
+        }
+        
+        .event-log {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+        }
+        
+        .event-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #00C4CC;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .event-time {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+        
+        .event-type {
+            font-weight: 600;
+            color: #00C4CC;
+            margin-bottom: 4px;
+        }
+        
+        .event-data {
+            font-size: 14px;
+            color: #333;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .lark-info {
+            background: linear-gradient(135deg, #00C4CC11, #7D2AE811);
+            border: 1px solid #00C4CC44;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .lark-info h3 {
+            color: #00A0E9;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .lark-info .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .lark-info .info-label {
+            color: #666;
+        }
+        
+        .lark-info .info-value {
+            color: #333;
+            font-weight: 500;
+            font-family: monospace;
+        }
+        
+        .records-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .records-table th {
+            background: #f0f0f0;
+            padding: 10px;
+            text-align: left;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .records-table td {
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 14px;
+        }
+        
+        .records-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #00C4CC;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <div class="logo">📝</div>
+                Lark Content Workflow
+            </h1>
+            <p>Lark Base統合型コンテンツ生成システム</p>
+        </div>
+        
+        <div class="main-grid">
+            <!-- Control Panel -->
+            <div class="panel">
+                <h2>
+                    ワークフロー制御
+                    <span class="lark-badge">Lark Base連携</span>
+                </h2>
+                
+                <div class="lark-info">
+                    <h3>🔗 Lark Base接続情報</h3>
+                    <div class="info-row">
+                        <span class="info-label">Base App Token:</span>
+                        <span class="info-value" id="baseAppToken">未設定</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Table ID:</span>
+                        <span class="info-value" id="tableId">未設定</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">接続状態:</span>
+                        <span class="info-value" id="connectionStatus">未接続</span>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="topicInput">コンテンツトピック</label>
+                    <input type="text" id="topicInput" placeholder="生成したいコンテンツのトピックを入力...">
+                </div>
+                
+                <div class="input-group">
+                    <label for="styleSelect">スタイル</label>
+                    <select id="styleSelect">
+                        <option value="professional">プロフェッショナル</option>
+                        <option value="casual">カジュアル</option>
+                        <option value="academic">アカデミック</option>
+                        <option value="creative">クリエイティブ</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label for="lengthSelect">長さ</label>
+                    <select id="lengthSelect">
+                        <option value="short">短い (500語)</option>
+                        <option value="medium" selected>中程度 (1500語)</option>
+                        <option value="long">長い (3000語)</option>
+                    </select>
+                </div>
+                
+                <div class="button-group">
+                    <button id="connectBtn" class="btn-primary">SSE接続</button>
+                    <button id="startBtn" class="btn-lark" disabled>ワークフロー開始</button>
+                    <button id="disconnectBtn" class="btn-secondary" disabled>切断</button>
+                    <button id="refreshLarkBtn" class="btn-secondary">Lark更新</button>
+                </div>
+                
+                <div class="status-grid" style="margin-top: 20px;">
+                    <div class="status-card" id="sseStatus">
+                        <div class="label">SSE接続</div>
+                        <div class="value">未接続</div>
+                    </div>
+                    <div class="status-card" id="workflowStatus">
+                        <div class="label">ワークフロー</div>
+                        <div class="value">待機中</div>
+                    </div>
+                    <div class="status-card" id="recordsCount">
+                        <div class="label">レコード数</div>
+                        <div class="value">0</div>
+                    </div>
+                    <div class="status-card" id="activeWorkflows">
+                        <div class="label">アクティブ</div>
+                        <div class="value">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Progress Panel -->
+            <div class="panel">
+                <h2>進捗状況</h2>
+                
+                <div class="workflow-stages">
+                    <div class="stage-list" id="stageList">
+                        <div class="stage-item" data-stage="initialization">
+                            <div class="stage-circle">1</div>
+                            <div class="stage-label">初期化</div>
+                        </div>
+                        <div class="stage-item" data-stage="research">
+                            <div class="stage-circle">2</div>
+                            <div class="stage-label">調査</div>
+                        </div>
+                        <div class="stage-item" data-stage="outline_creation">
+                            <div class="stage-circle">3</div>
+                            <div class="stage-label">構成</div>
+                        </div>
+                        <div class="stage-item" data-stage="content_generation">
+                            <div class="stage-circle">4</div>
+                            <div class="stage-label">生成</div>
+                        </div>
+                        <div class="stage-item" data-stage="review">
+                            <div class="stage-circle">5</div>
+                            <div class="stage-label">レビュー</div>
+                        </div>
+                        <div class="stage-item" data-stage="finalization">
+                            <div class="stage-circle">6</div>
+                            <div class="stage-label">最終化</div>
+                        </div>
+                        <div class="stage-item" data-stage="complete">
+                            <div class="stage-circle">✓</div>
+                            <div class="stage-label">完了</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="event-log">
+                    <h3 style="margin-bottom: 15px;">イベントログ</h3>
+                    <div id="eventContainer"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Lark Base Records Panel -->
+        <div class="panel">
+            <h2>
+                Lark Base レコード
+                <span id="recordsLoader" class="loader" style="display: none;"></span>
+            </h2>
+            
+            <div class="button-group" style="margin-bottom: 20px;">
+                <button id="loadRecordsBtn" class="btn-secondary">レコード読み込み</button>
+                <button id="clearLogBtn" class="btn-secondary">ログクリア</button>
+                <button id="viewInLarkBtn" class="btn-lark">Lark Baseで表示</button>
+            </div>
+            
+            <div id="recordsContainer">
+                <div class="empty-state">
+                    <p>レコードがありません</p>
+                    <p style="font-size: 12px; margin-top: 10px;">「レコード読み込み」をクリックしてデータを取得してください</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3001' 
+            : window.location.origin;
+        
+        // State
+        let eventSource = null;
+        let isConnected = false;
+        let currentWorkflowId = null;
+        let larkConfig = {};
+        
+        // DOM Elements
+        const connectBtn = document.getElementById('connectBtn');
+        const startBtn = document.getElementById('startBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const refreshLarkBtn = document.getElementById('refreshLarkBtn');
+        const loadRecordsBtn = document.getElementById('loadRecordsBtn');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const viewInLarkBtn = document.getElementById('viewInLarkBtn');
+        const topicInput = document.getElementById('topicInput');
+        const styleSelect = document.getElementById('styleSelect');
+        const lengthSelect = document.getElementById('lengthSelect');
+        const eventContainer = document.getElementById('eventContainer');
+        const progressBar = document.getElementById('progressBar');
+        const recordsContainer = document.getElementById('recordsContainer');
+        
+        // Initialize
+        async function initialize() {
+            await checkHealth();
+            setupEventListeners();
+            topicInput.value = 'AI活用による業務効率化';
+        }
+        
+        // Check server health
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                if (data.larkBase) {
+                    document.getElementById('baseAppToken').textContent = 
+                        data.larkBase.appToken === 'configured' ? '設定済み' : '未設定';
+                    document.getElementById('connectionStatus').textContent = 
+                        data.larkBase.connected ? '接続済み' : '未接続';
+                    
+                    larkConfig = data.larkBase;
+                }
+                
+                updateStatus('sseStatus', data.activeConnections > 0 ? '接続中' : '未接続');
+            } catch (error) {
+                console.error('Health check failed:', error);
+            }
+        }
+        
+        // Connect to SSE stream
+        function connect() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            eventSource = new EventSource(`${API_BASE}/api/workflow/stream`);
+            
+            eventSource.addEventListener('connected', (event) => {
+                const data = JSON.parse(event.data);
+                updateConnectionStatus(true);
+                addEventToLog('connected', data);
+            });
+            
+            eventSource.addEventListener('stage_update', (event) => {
+                const data = JSON.parse(event.data);
+                updateStageProgress(data.stage, data.progress);
+                addEventToLog('stage_update', data);
+            });
+            
+            eventSource.addEventListener('stage_data', (event) => {
+                const data = JSON.parse(event.data);
+                addEventToLog('stage_data', data);
+                
+                if (data.stage === 'complete' && data.data.larkBase) {
+                    document.getElementById('tableId').textContent = data.data.larkBase.recordId;
+                    loadRecords();
+                }
+            });
+            
+            eventSource.addEventListener('content_progress', (event) => {
+                const data = JSON.parse(event.data);
+                updateProgressBar(data.progress);
+                addEventToLog('content_progress', data);
+            });
+            
+            eventSource.addEventListener('heartbeat', (event) => {
+                const data = JSON.parse(event.data);
+                updateStatus('activeWorkflows', data.activeConnections);
+            });
+            
+            eventSource.onerror = (error) => {
+                console.error('SSE Error:', error);
+                updateConnectionStatus(false);
+                addEventToLog('error', { message: '接続が失われました' });
+            };
+        }
+        
+        // Disconnect from stream
+        function disconnect() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            updateConnectionStatus(false);
+            resetStages();
+        }
+        
+        // Start workflow
+        async function startWorkflow() {
+            const topic = topicInput.value.trim();
+            if (!topic) {
+                alert('トピックを入力してください');
+                return;
+            }
+            
+            resetStages();
+            updateStatus('workflowStatus', '処理中...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/workflow/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        topic,
+                        parameters: {
+                            style: styleSelect.value,
+                            length: lengthSelect.value,
+                            language: 'ja'
+                        },
+                        larkConfig: {
+                            userId: 'user_' + Date.now()
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                currentWorkflowId = data.workflowId;
+                addEventToLog('workflow_started', data);
+                
+                if (data.larkBase) {
+                    document.getElementById('baseAppToken').textContent = 
+                        data.larkBase.appToken || '未設定';
+                    document.getElementById('tableId').textContent = 
+                        data.larkBase.tableId || '未設定';
+                }
+            } catch (error) {
+                console.error('Error starting workflow:', error);
+                addEventToLog('error', { message: 'ワークフローの開始に失敗しました' });
+                updateStatus('workflowStatus', 'エラー');
+            }
+        }
+        
+        // Load Lark Base records
+        async function loadRecords() {
+            document.getElementById('recordsLoader').style.display = 'inline-block';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/lark/records`);
+                const data = await response.json();
+                
+                updateStatus('recordsCount', data.total || data.records?.length || 0);
+                displayRecords(data.records || []);
+            } catch (error) {
+                console.error('Error loading records:', error);
+                recordsContainer.innerHTML = '<div class="empty-state">レコードの読み込みに失敗しました</div>';
+            } finally {
+                document.getElementById('recordsLoader').style.display = 'none';
+            }
+        }
+        
+        // Display records in table
+        function displayRecords(records) {
+            if (!records || records.length === 0) {
+                recordsContainer.innerHTML = '<div class="empty-state">レコードがありません</div>';
+                return;
+            }
+            
+            const table = document.createElement('table');
+            table.className = 'records-table';
+            
+            // Header
+            const header = `
+                <thead>
+                    <tr>
+                        <th>ワークフローID</th>
+                        <th>トピック</th>
+                        <th>ステータス</th>
+                        <th>進捗</th>
+                        <th>作成日時</th>
+                    </tr>
+                </thead>
+            `;
+            
+            // Body
+            const rows = records.map(record => {
+                const fields = record.fields || {};
+                return `
+                    <tr>
+                        <td>${fields.workflow_id || '-'}</td>
+                        <td>${fields.topic || '-'}</td>
+                        <td>${fields.status || '-'}</td>
+                        <td>${fields.progress || 0}%</td>
+                        <td>${fields.created_at ? new Date(fields.created_at).toLocaleString('ja-JP') : '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            table.innerHTML = header + '<tbody>' + rows + '</tbody>';
+            recordsContainer.innerHTML = '';
+            recordsContainer.appendChild(table);
+        }
+        
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            updateStatus('sseStatus', connected ? '接続中' : '未接続');
+            
+            connectBtn.disabled = connected;
+            startBtn.disabled = !connected;
+            disconnectBtn.disabled = !connected;
+            
+            if (connected) {
+                document.getElementById('sseStatus').classList.add('active');
+            } else {
+                document.getElementById('sseStatus').classList.remove('active');
+            }
+        }
+        
+        // Update status card
+        function updateStatus(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                const valueEl = element.querySelector('.value');
+                if (valueEl) {
+                    valueEl.textContent = value;
+                }
+            }
+        }
+        
+        // Update stage progress
+        function updateStageProgress(stageName, progress) {
+            const stages = ['initialization', 'research', 'outline_creation', 'content_generation', 'review', 'finalization', 'complete'];
+            const stageIndex = stages.indexOf(stageName);
+            
+            if (stageIndex === -1) return;
+            
+            // Update stage visuals
+            stages.forEach((stage, index) => {
+                const stageEl = document.querySelector(`[data-stage="${stage}"]`);
+                if (stageEl) {
+                    if (index < stageIndex) {
+                        stageEl.classList.remove('active');
+                        stageEl.classList.add('completed');
+                    } else if (index === stageIndex) {
+                        stageEl.classList.add('active');
+                    } else {
+                        stageEl.classList.remove('active', 'completed');
+                    }
+                }
+            });
+            
+            // Update progress bar
+            updateProgressBar(progress || ((stageIndex + 1) / stages.length) * 100);
+            
+            // Update workflow status
+            if (stageName === 'complete') {
+                updateStatus('workflowStatus', '完了');
+            } else {
+                updateStatus('workflowStatus', '処理中');
+            }
+        }
+        
+        // Update progress bar
+        function updateProgressBar(percentage) {
+            progressBar.style.width = `${percentage}%`;
+        }
+        
+        // Reset stages
+        function resetStages() {
+            document.querySelectorAll('.stage-item').forEach(el => {
+                el.classList.remove('active', 'completed');
+            });
+            updateProgressBar(0);
+        }
+        
+        // Add event to log
+        function addEventToLog(type, data) {
+            const eventEl = document.createElement('div');
+            eventEl.className = 'event-item';
+            
+            const time = new Date().toLocaleTimeString('ja-JP');
+            const dataStr = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+            
+            eventEl.innerHTML = `
+                <div class="event-time">${time}</div>
+                <div class="event-type">${type}</div>
+                <div class="event-data">${dataStr}</div>
+            `;
+            
+            eventContainer.insertBefore(eventEl, eventContainer.firstChild);
+            
+            // Keep only last 30 events
+            while (eventContainer.children.length > 30) {
+                eventContainer.removeChild(eventContainer.lastChild);
+            }
+        }
+        
+        // Clear event log
+        function clearLog() {
+            eventContainer.innerHTML = '';
+        }
+        
+        // View in Lark Base
+        function viewInLark() {
+            const baseUrl = 'https://base.larksuite.com/base/';
+            const appToken = document.getElementById('baseAppToken').textContent;
+            const tableId = document.getElementById('tableId').textContent;
+            
+            if (appToken && appToken !== '未設定') {
+                window.open(`${baseUrl}${appToken}?table=${tableId}`, '_blank');
+            } else {
+                alert('Lark Base接続情報が設定されていません');
+            }
+        }
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            connectBtn.addEventListener('click', connect);
+            disconnectBtn.addEventListener('click', disconnect);
+            startBtn.addEventListener('click', startWorkflow);
+            refreshLarkBtn.addEventListener('click', checkHealth);
+            loadRecordsBtn.addEventListener('click', loadRecords);
+            clearLogBtn.addEventListener('click', clearLog);
+            viewInLarkBtn.addEventListener('click', viewInLark);
+        }
+        
+        // Initialize on load
+        initialize();
+    </script>
+</body>
+</html>

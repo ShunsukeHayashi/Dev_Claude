@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  lark-content-workflow:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - LARK_APP_ID=${LARK_APP_ID}
+      - LARK_APP_SECRET=${LARK_APP_SECRET}
+      - LARK_BASE_APP_TOKEN=${LARK_BASE_APP_TOKEN}
+      - LARK_BASE_TABLE_ID=${LARK_BASE_TABLE_ID}
+      - SSE_HEARTBEAT_INTERVAL=30000
+      - SSE_MAX_CONNECTIONS=100
+      - CORS_ORIGIN=*
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Redis for caching (future enhancement)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    profiles:
+      - cache
+
+volumes:
+  redis_data:
+
+networks:
+  default:
+    name: lark-content-workflow

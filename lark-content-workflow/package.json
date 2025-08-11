@@ -1,0 +1,62 @@
+{
+  "name": "lark-content-workflow",
+  "version": "1.0.0",
+  "description": "Lark Base integrated content generation workflow with SSE and MCP server",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node tests/test-lark.js",
+    "setup": "node scripts/setup-lark-base.js",
+    "setup:base": "node scripts/setup-lark-base.js",
+    "mcp": "node src/mcp-server.js",
+    "mcp:dev": "nodemon src/mcp-server.js",
+    "build": "echo 'No build step required for Node.js'",
+    "deploy": "npm run setup:base && npm start"
+  },
+  "bin": {
+    "lark-content-workflow-mcp": "./src/mcp-server.js"
+  },
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.20.0",
+    "@modelcontextprotocol/sdk": "^0.4.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "node-fetch": "^3.3.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "eventsource": "^4.0.0",
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "lark",
+    "content-workflow",
+    "sse",
+    "mcp",
+    "ai",
+    "automation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/lark-content-workflow.git"
+  },
+  "mcp": {
+    "server": {
+      "command": "node",
+      "args": [
+        "src/mcp-server.js"
+      ],
+      "env": {
+        "LARK_APP_ID": "",
+        "LARK_APP_SECRET": "",
+        "LARK_BASE_APP_TOKEN": ""
+      }
+    }
+  }
+}
